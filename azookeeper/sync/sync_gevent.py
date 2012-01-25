@@ -3,6 +3,7 @@ import os
 
 import gevent
 import gevent.event
+from gevent.timeout import Timeout
 
 # get the unpatched thread module
 import azookeeper.sync.util
@@ -54,6 +55,7 @@ class _Event(gevent.event.Event):
 class GeventSyncStrategy(object):
 
     name = "gevent"
+    timeout_error = Timeout
 
     def __init__(self):
         self._pipe_read, self._pipe_write = _pipe()

@@ -79,6 +79,7 @@ class _AsyncResult(object):
 
 class ThreadingSyncStrategy(object):
     name = "threading"
+    timeout_error = TimeoutError
 
     def async_result(self):
         return _AsyncResult()
