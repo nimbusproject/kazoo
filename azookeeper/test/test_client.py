@@ -1,6 +1,7 @@
 import unittest
 import os
 import uuid
+import threading
 
 from azookeeper.client import ZooKeeperClient
 
@@ -42,6 +43,66 @@ class ZooKeeperClientTests(unittest.TestCase):
         newstat = self.zk.set(nodepath, "hats", stat["version"])
         self.assertTrue(newstat)
         self.assertGreater(newstat['version'], stat['version'])
+
+    def test_create_get_sequential(self):
+        self.zk = ZooKeeperClient(self.hosts)
+        self.zk.connect()
+
+        basepath = "/" + uuid.uuid4().hex
+        realpath = self.zk.create(basepath, "sandwich", sequence=True,
+            ephemeral=True)
+
+        self.assertTrue(basepath != realpath and realpath.startswith(basepath))
+
+        data, stat = self.zk.get(realpath)
+        self.assertEqual(data, "sandwich")
+
+    def test_exists(self):
+        self.zk = ZooKeeperClient(self.hosts)
+        self.zk.connect()
+
+        nodepath = "/" + uuid.uuid4().hex
+
+        exists = self.zk.exists(nodepath)
+        self.assertIsNone(exists)
+
+        self.zk.create(nodepath, "sandwich", ephemeral=True)
+        exists = self.zk.exists(nodepath)
+        self.assertTrue(exists)
+        self.assertIn("version", exists)
+
+    def test_exists_watch(self):
+        self.zk = ZooKeeperClient(self.hosts)
+        self.zk.connect()
+
+        nodepath = "/" + uuid.uuid4().hex
+
+        event = threading.Event()
+
+        def w(type, state, path):
+            self.assertEqual(path, nodepath)
+            event.set()
+
+        exists = self.zk.exists(nodepath, watch=w)
+        self.assertIsNone(exists)
+
+        self.zk.create(nodepath, "x", ephemeral=True)
+
+        event.wait(1)
+        self.assertTrue(event.is_set())
+
+    def test_create_delete(self):
+        self.zk = ZooKeeperClient(self.hosts)
+        self.zk.connect()
+
+        nodepath = "/" + uuid.uuid4().hex
+
+        self.zk.create(nodepath, "zzz")
+
+        self.zk.delete(nodepath)
+
+        exists = self.zk.exists(nodepath)
+        self.assertIsNone(exists)
 
 def get_zk_hosts_or_skip():
     if ENV_AZK_TEST_HOSTS in os.environ:

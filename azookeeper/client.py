@@ -9,13 +9,13 @@ from azookeeper.sync import get_sync_strategy
 ZK_OPEN_ACL_UNSAFE = {"perms": zookeeper.PERM_ALL, "scheme": "world",
                        "id": "anyone"}
 
+#noinspection PyUnresolvedReferences
 class ZooKeeperClient(object):
     """A gevent-friendly wrapper of the Apache ZooKeeper zkpython client
 
     TODO lots to do:
-    * handling of ZK client session events
+    * better handling of ZK client session events
     * disconnected state handling
-    * tests
     * the rest of the operations
     """
     def __init__(self, hosts, timeout=10000):
@@ -34,9 +34,11 @@ class ZooKeeperClient(object):
         return self._connected
 
     def _wrap_callback(self, func):
-        return partial(self._sync.dispatch_callback, func)
+        def wrapper(handle, *args):
+            self._sync.dispatch_callback(func, *args)
+        return wrapper
 
-    def _session_callback(self, handle, type, state, path):
+    def _session_callback(self, type, state, path):
         if state == zookeeper.CONNECTED_STATE:
             self._connected = True
         elif state == zookeeper.CONNECTING_STATE:
@@ -139,56 +141,78 @@ class ZooKeeperClient(object):
         @param sequence: boolean indicating whether path is suffixed with a unique index
         @return: real path of the new node
         """
-
         return self.create_async(path, value, acl, ephemeral, sequence).get()
 
-    def get_async(self, path, watcher=None):
+    def exists_async(self, path, watch=None):
+        """Asynchronously check if a node exists
+
+        @param path: path of node
+        @param watch: optional watch callback to set for future changes to this path
+        @return stat of the node if it exists, else None
+        """
+        async_result = self._sync.async_result()
+        callback = partial(_exists_callback, async_result)
+        watch_callback = self._wrap_callback(watch) if watch else None
+
+        zookeeper.aexists(self._handle, path, watch_callback, callback)
+        return async_result
+
+    def exists(self, path, watch=None):
+        """Asynchronously check if a node exists
+
+        @param path: path of node
+        @param watch: optional watch callback to set for future changes to this path
+        @return stat of the node if it exists, else None
+        """
+        return self.exists_async(path, watch).get()
+
+    def get_async(self, path, watch=None):
         """Asynchronously get the value of a node
 
         @param path: path of node
-        @param watcher: optional watch callback to set for future changes to this path
+        @param watch: optional watch callback to set for future changes to this path
         @return AsyncResult set with tuple (value, stat) of node on success
         @rtype AsyncResult
         """
         async_result = self._sync.async_result()
         callback = partial(_generic_callback, async_result)
-        watcher_callback = self._wrap_callback(watcher) if watcher else None
+        watch_callback = self._wrap_callback(watch) if watch else None
 
-        zookeeper.aget(self._handle, path, watcher_callback, callback)
+        zookeeper.aget(self._handle, path, watch_callback, callback)
         return async_result
 
-    def get(self, path, watcher=None):
+    def get(self, path, watch=None):
         """Get the value of a node
 
         @param path: path of node
-        @param watcher: optional watch callback to set for future changes to this path
+        @param watch: optional watch callback to set for future changes to this path
         @return tuple (value, stat) of node
         """
-        return self.get_async(path, watcher).get()
+        return self.get_async(path, watch).get()
 
-    def get_children_async(self, path, watcher=None):
+    def get_children_async(self, path, watch=None):
         """Asynchronously get a list of child nodes of a path
 
         @param path: path of node to list
-        @param watcher: optional watch callback to set for future changes to this path
+        @param watch: optional watch callback to set for future changes to this path
         @return: AsyncResult set with list of child node names on success
         @rtype: AsyncResult
         """
         async_result = self._sync.async_result()
         callback = partial(_generic_callback, async_result)
-        watcher_callback = self._wrap_callback(watcher) if watcher else None
+        watch_callback = self._wrap_callback(watch) if watch else None
 
-        zookeeper.aget_children(self._handle, path, watcher_callback, callback)
+        zookeeper.aget_children(self._handle, path, watch_callback, callback)
         return async_result
 
-    def get_children(self, path, watcher=None):
+    def get_children(self, path, watch=None):
         """Get a list of child nodes of a path
 
         @param path: path of node to list
-        @param watcher: optional watch callback to set for future changes to this path
+        @param watch: optional watch callback to set for future changes to this path
         @return: list of child node names
         """
-        return self.get_children_async(path, watcher).get()
+        return self.get_children_async(path, watch).get()
 
     def set_async(self, path, data, version=-1):
         """Set the value of a node
@@ -223,6 +247,28 @@ class ZooKeeperClient(object):
         """
         return self.set_async(path, data, version).get()
 
+    def delete_async(self, path, version=-1):
+        """Asynchronously delete a node
+
+        @param path: path of node to delete
+        @param version: version of node to delete, or -1 for any
+        @return AyncResult set upon completion
+        @rtype AsyncResult
+        """
+        async_result = self._sync.async_result()
+        callback = partial(_generic_callback, async_result)
+
+        zookeeper.adelete(self._handle, path, version, callback)
+        return async_result
+
+    def delete(self, path, version=-1):
+        """Delete a node
+
+        @param path: path of node to delete
+        @param version: version of node to delete, or -1 for any
+        """
+        self.delete_async(path, version).get()
+
 
 def _generic_callback(async_result, handle, code, *args):
     if code != zookeeper.OK:
@@ -237,6 +283,14 @@ def _generic_callback(async_result, handle, code, *args):
             result = tuple(args)
 
         async_result.set(result)
+
+
+def _exists_callback(async_result, handle, code, stat):
+    if code not in (zookeeper.OK, zookeeper.NONODE):
+        exc = err_to_exception(code)
+        async_result.set_exception(exc)
+    else:
+        async_result.set(stat)
 
 
 # this dictionary is a port of err_to_exception() from zkpython zookeeper.c
