@@ -39,8 +39,9 @@ class ZooKeeperClientTests(unittest.TestCase):
         data, stat = self.zk.get(nodepath)
         self.assertEqual(data, "sandwich")
 
-        self.zk.set(nodepath, "hats", stat["version"])
-
+        newstat = self.zk.set(nodepath, "hats", stat["version"])
+        self.assertTrue(newstat)
+        self.assertGreater(newstat['version'], stat['version'])
 
 def get_zk_hosts_or_skip():
     if ENV_AZK_TEST_HOSTS in os.environ:
