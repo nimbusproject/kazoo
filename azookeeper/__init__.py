@@ -1,7 +1,19 @@
-from azookeeper.client import ZookeeperClient
+import os
 
-__all__ = ['ZookeeperClient']
+from azookeeper.client import ZooKeeperClient
 
+__all__ = ['ZooKeeperClient']
+
+
+# ZK C client likes to spew log info to STDERR. disable that unless an
+# env is present.
+
+def disable_zookeeper_log():
+    import zookeeper
+    zookeeper.set_log_stream(open('/dev/null'))
+
+if not "AZK_LOG_ENABLED" in os.environ:
+    disable_zookeeper_log()
 
 def patch_extras():
     # workaround for http://code.google.com/p/gevent/issues/detail?id=112
@@ -11,7 +23,6 @@ def patch_extras():
     import threading
     threading._sleep = sleep
 
-import os
 if "AZK_TEST_GEVENT_PATCH" in os.environ:
     from gevent import monkey; monkey.patch_all()
     patch_extras()
