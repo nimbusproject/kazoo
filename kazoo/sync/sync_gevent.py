@@ -6,8 +6,8 @@ import gevent.event
 from gevent.timeout import Timeout
 
 # get the unpatched thread module
-import azookeeper.sync.util
-realthread = azookeeper.sync.util.get_realthread()
+import kazoo.sync.util
+realthread = kazoo.sync.util.get_realthread()
 
 
 # this is inspired by the threadpool recipe in the geventutil package:

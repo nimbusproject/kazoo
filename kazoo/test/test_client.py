@@ -3,7 +3,7 @@ import os
 import uuid
 import threading
 
-from azookeeper.client import ZooKeeperClient
+from kazoo.client import ZooKeeperClient
 
 # if this env variable is set, ZK client integration tests are run
 # against the specified host list

@@ -2,14 +2,14 @@ import unittest
 import time
 import threading
 
-import azookeeper.sync
-import azookeeper.sync.util
+import kazoo.sync
+import kazoo.sync.util
 
-realthread = azookeeper.sync.util.get_realthread()
+realthread = kazoo.sync.util.get_realthread()
 
 class SyncStrategyTests(unittest.TestCase):
     def setUp(self):
-        self.sync = azookeeper.sync.get_sync_strategy()
+        self.sync = kazoo.sync.get_sync_strategy()
         print "Sync strategy is %s" % self.sync.name
 
     def tearDown(self):

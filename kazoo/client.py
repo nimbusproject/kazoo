@@ -4,7 +4,7 @@ from functools import partial
 
 import zookeeper
 
-from azookeeper.sync import get_sync_strategy
+from kazoo.sync import get_sync_strategy
 
 ZK_OPEN_ACL_UNSAFE = {"perms": zookeeper.PERM_ALL, "scheme": "world",
                        "id": "anyone"}

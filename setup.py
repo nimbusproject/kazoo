@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 setupdict = {
-    'name' : 'azookeeper',
+    'name' : 'kazoo',
     'version' : '0.1',
     'description' : 'ZooKeeper client that supports async frameworks',
     'license' : 'Apache 2.0',

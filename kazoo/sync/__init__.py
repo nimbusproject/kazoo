@@ -4,11 +4,11 @@ def get_sync_strategy():
     import sys
 
     if "gevent" in sys.modules:
-        from azookeeper.sync import sync_gevent
+        from kazoo.sync import sync_gevent
         return sync_gevent.GeventSyncStrategy()
 
     else:
-        from azookeeper.sync import sync_threading
+        from kazoo.sync import sync_threading
         return sync_threading.ThreadingSyncStrategy()
 
 
