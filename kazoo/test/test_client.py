@@ -1,17 +1,13 @@
 import unittest
-import os
 import uuid
 import threading
 
 from kazoo.client import ZooKeeperClient
-
-# if this env variable is set, ZK client integration tests are run
-# against the specified host list
-ENV_AZK_TEST_HOSTS = "AZK_TEST_HOSTS"
+from kazoo.test import get_hosts_or_skip
 
 class ZooKeeperClientTests(unittest.TestCase):
     def setUp(self):
-        self.hosts = get_zk_hosts_or_skip()
+        self.hosts = get_hosts_or_skip()
 
         self.zk = None
         self.created = []
@@ -104,10 +100,5 @@ class ZooKeeperClientTests(unittest.TestCase):
         exists = self.zk.exists(nodepath)
         self.assertIsNone(exists)
 
-def get_zk_hosts_or_skip():
-    if ENV_AZK_TEST_HOSTS in os.environ:
-        return os.environ[ENV_AZK_TEST_HOSTS]
-    raise unittest.SkipTest("Skipping ZooKeeper test. To run, set "+
-                            "%s env to a host list. (ex: localhost:2181)" %
-                            ENV_AZK_TEST_HOSTS)
+
   

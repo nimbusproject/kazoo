@@ -5,6 +5,7 @@ from functools import partial
 import zookeeper
 
 from kazoo.sync import get_sync_strategy
+from kazoo.retry import KazooRetry
 
 ZK_OPEN_ACL_UNSAFE = {"perms": zookeeper.PERM_ALL, "scheme": "world",
                        "id": "anyone"}
@@ -18,7 +19,7 @@ class ZooKeeperClient(object):
     * disconnected state handling
     * the rest of the operations
     """
-    def __init__(self, hosts, timeout=10000):
+    def __init__(self, hosts, timeout=10000, max_retries=None):
         self._hosts = hosts
         self._timeout = timeout
 
@@ -28,6 +29,15 @@ class ZooKeeperClient(object):
         self._connected = False
         self._connected_async_result = self._sync.async_result()
         self._connection_timed_out = False
+
+        self._retry = None
+        self._max_retries = max_retries
+
+    @property
+    def retry(self):
+        if not self._retry:
+            self._retry = KazooRetry(self._max_retries)
+        return self._retry
 
     @property
     def connected(self):
