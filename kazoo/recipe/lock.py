@@ -39,6 +39,7 @@ class ZooLock(object):
         except Exception:
             # if we did ultimately fail, attempt to clean up
             self._best_effort_cleanup()
+            raise
 
     def _inner_acquire(self):
         node = None
@@ -50,23 +51,25 @@ class ZooLock(object):
         if not node:
             node = self.client.create(self.create_path, "",
                 ephemeral=True, sequence=True)
+            # strip off path to node
+            node = node[len(self.path)+1:]
 
         self.node = node
 
         while True:
             children = self._get_sorted_children()
 
-            our_index = children.index(node)
-
-            if our_index == -1:
-                # somehow we aren't in the election -- probably we are
+            try:
+                our_index = children.index(node)
+            except ValueError:
+                # somehow we aren't in the children -- probably we are
                 # recovering from a session failure and our ephemeral
                 # node was removed
                 raise ForceRetryError()
 
             #noinspection PySimplifyBooleanCheck
             if our_index == 0:
-                # we are leader
+                # we have the lock
                 return True
 
             # otherwise we are in the mix. watch predecessor and bide our time
