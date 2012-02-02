@@ -2,17 +2,22 @@ import threading
 import uuid
 
 from kazoo.retry import ForceRetryError
+from zookeeper import NoNodeException
 
 #noinspection PyArgumentList
 class ZooLock(object):
     _LOCK_NAME = '_lock_'
 
-    def __init__(self, client, path):
+    def __init__(self, client, path, contender_name=None):
         """
         @type client ZooKeeperClient
         """
         self.client = client
         self.path = path
+
+        # some data is written to the node. this can be queries via
+        # get_contenders() to see who is contending for the lock
+        self.data = str(contender_name or "")
 
         self.condition = threading.Condition()
 
@@ -49,7 +54,7 @@ class ZooLock(object):
             self.create_tried = True
 
         if not node:
-            node = self.client.create(self.create_path, "",
+            node = self.client.create(self.create_path, self.data,
                 ephemeral=True, sequence=True)
             # strip off path to node
             node = node[len(self.path)+1:]
@@ -122,6 +127,20 @@ class ZooLock(object):
         self.node = None
 
         return True
+
+    def get_contenders(self):
+        """Return an ordered list of the current contenders for the lock
+        """
+        children = self._get_sorted_children()
+
+        contenders = []
+        for child in children:
+            try:
+                data, stat = self.client.get(self.path + "/" + child)
+                contenders.append(data)
+            except NoNodeException:
+                pass
+        return contenders
 
     def __enter__(self):
         self.acquire()

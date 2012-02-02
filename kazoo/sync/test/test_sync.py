@@ -70,7 +70,7 @@ class SyncStrategyTests(unittest.TestCase):
 
         realthread.start_new_thread(thread_dispatch_callbacks,
             (self.sync, fun, callbacks))
-        done.wait()
+        done.wait(10)
         self.assertEqual(results, range(callbacks))
 
 def thread_set_async_result(async_result, value=None, exception=None):

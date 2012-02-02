@@ -12,7 +12,7 @@ def disable_zookeeper_log():
     import zookeeper
     zookeeper.set_log_stream(open('/dev/null'))
 
-if not "AZK_LOG_ENABLED" in os.environ:
+if not "KAZOO_LOG_ENABLED" in os.environ:
     disable_zookeeper_log()
 
 def patch_extras():
@@ -23,6 +23,6 @@ def patch_extras():
     import threading
     threading._sleep = sleep
 
-if "AZK_TEST_GEVENT_PATCH" in os.environ:
+if "KAZOO_TEST_GEVENT_PATCH" in os.environ:
     from gevent import monkey; monkey.patch_all()
     patch_extras()
