@@ -2,7 +2,7 @@ import os
 import unittest
 import time
 
-from kazoo.client import ZooKeeperClient
+from kazoo.zkclient import ZooKeeperClient
 
 # if this env variable is set, ZK client integration tests are run
 # against the specified host list

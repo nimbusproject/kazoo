@@ -2,7 +2,7 @@ import unittest
 import uuid
 import threading
 
-from kazoo.client import ZooKeeperClient
+from kazoo.zkclient import ZooKeeperClient
 from kazoo.test import get_hosts_or_skip
 
 class ZooKeeperClientTests(unittest.TestCase):

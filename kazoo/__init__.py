@@ -1,6 +1,6 @@
 import os
 
-from kazoo.client import ZooKeeperClient
+from kazoo.zkclient import ZooKeeperClient
 
 __all__ = ['ZooKeeperClient']
 
