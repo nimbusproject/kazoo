@@ -10,7 +10,7 @@ class ZooLock(object):
 
     def __init__(self, client, path, contender_name=None):
         """
-        @type client ZooKeeperClient
+        @type client KazooClient
         """
         self.client = client
         self.path = path
@@ -83,7 +83,7 @@ class ZooLock(object):
                 if self.client.exists(predecessor, self._watch_predecessor):
                     self.condition.wait()
 
-    def _watch_predecessor(self, type, state, path):
+    def _watch_predecessor(self, event):
         with self.condition:
             self.condition.notify_all()
 

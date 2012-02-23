@@ -75,8 +75,8 @@ class ZooKeeperClientTests(unittest.TestCase):
 
         event = threading.Event()
 
-        def w(type, state, path):
-            self.assertEqual(path, nodepath)
+        def w(watch_event):
+            self.assertEqual(watch_event.path, nodepath)
             event.set()
 
         exists = self.zk.exists(nodepath, watch=w)

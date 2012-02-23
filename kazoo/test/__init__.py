@@ -3,6 +3,7 @@ import unittest
 import time
 
 from kazoo.zkclient import ZooKeeperClient
+from kazoo.client import KazooClient
 
 # if this env variable is set, ZK client integration tests are run
 # against the specified host list
@@ -17,7 +18,7 @@ def get_hosts_or_skip():
 
 def get_client_or_skip(**kwargs):
     hosts = get_hosts_or_skip()
-    return ZooKeeperClient(hosts, **kwargs)
+    return KazooClient(hosts, **kwargs)
 
 def until_timeout(timeout, value=None):
     """Returns an iterator that repeats until a timeout is reached

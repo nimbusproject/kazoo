@@ -1,14 +1,38 @@
 #!/usr/bin/env python
 
 from functools import partial
+from collections import namedtuple
 
 import zookeeper
 
 from kazoo.sync import get_sync_strategy
-from kazoo.retry import KazooRetry
 
 ZK_OPEN_ACL_UNSAFE = {"perms": zookeeper.PERM_ALL, "scheme": "world",
                        "id": "anyone"}
+
+class KeeperState(object):
+    ASSOCIATING = zookeeper.ASSOCIATING_STATE
+    AUTH_FAILED = zookeeper.AUTH_FAILED_STATE
+    CONNECTED = zookeeper.CONNECTED_STATE
+    CONNECTING = zookeeper.CONNECTING_STATE
+    EXPIRED_SESSION = zookeeper.EXPIRED_SESSION_STATE
+
+
+class EventType(object):
+    NOTWATCHING = zookeeper.NOTWATCHING_EVENT
+    SESSION = zookeeper.SESSION_EVENT
+    CREATED = zookeeper.CREATED_EVENT
+    DELETED = zookeeper.DELETED_EVENT
+    CHANGED = zookeeper.CHANGED_EVENT
+    CHILD = zookeeper.CHILD_EVENT
+
+
+class WatchedEvent(namedtuple('WatchedEvent', ('type', 'state', 'path'))):
+    """ A change on the ZooKeeper that a Watcher is able to respond to.
+
+    The WatchedEvent includes exactly what happened, the current state of the
+    ZooKeeper, and the path of the znode that was involved in the event.
+    """
 
 #noinspection PyUnresolvedReferences
 class ZooKeeperClient(object):
@@ -19,8 +43,9 @@ class ZooKeeperClient(object):
     * disconnected state handling
     * the rest of the operations
     """
-    def __init__(self, hosts, timeout=10000, max_retries=None):
+    def __init__(self, hosts, watcher=None, timeout=10000):
         self._hosts = hosts
+        self._watcher = watcher
         self._timeout = timeout
 
         self._sync = get_sync_strategy()
@@ -30,28 +55,34 @@ class ZooKeeperClient(object):
         self._connected_async_result = self._sync.async_result()
         self._connection_timed_out = False
 
-        self._retry = None
-        self._max_retries = max_retries
-
-    @property
-    def retry(self):
-        if not self._retry:
-            self._retry = KazooRetry(self._max_retries)
-        return self._retry
-
     @property
     def connected(self):
         return self._connected
 
-    def _wrap_callback(self, func):
-        def wrapper(handle, *args):
-            self._sync.dispatch_callback(func, *args)
+    @property
+    def sync(self):
+        return self._sync
+
+    def _wrap_session_callback(self, func):
+        def wrapper(handle, type, state, path):
+
+            event = WatchedEvent(type, state, path)
+            self._sync.dispatch_callback(func, event)
         return wrapper
 
-    def _session_callback(self, type, state, path):
-        if state == zookeeper.CONNECTED_STATE:
+    def _wrap_watch_callback(self, func):
+        def wrapper(handle, type, state, path):
+
+            # don't send session events to all watchers
+            if state != zookeeper.SESSION_EVENT:
+                event = WatchedEvent(type, state, path)
+                self._sync.dispatch_callback(func, event)
+        return wrapper
+
+    def _session_callback(self, event):
+        if event.state == zookeeper.CONNECTED_STATE:
             self._connected = True
-        elif state == zookeeper.CONNECTING_STATE:
+        elif event.state == zookeeper.CONNECTING_STATE:
             self._connected = False
 
         if not self._connected_async_result.ready():
@@ -61,6 +92,9 @@ class ZooKeeperClient(object):
             else:
                 self._connected_async_result.set()
 
+        if self._watcher:
+            self._watcher(event)
+
     def connect_async(self):
         """Asynchronously initiate connection to ZK
 
@@ -68,7 +102,7 @@ class ZooKeeperClient(object):
         @rtype AsyncResult
         """
 
-        cb = self._wrap_callback(self._session_callback)
+        cb = self._wrap_session_callback(self._session_callback)
         self._handle = zookeeper.init(self._hosts, cb, self._timeout)
         return self._connected_async_result
 
@@ -116,8 +150,7 @@ class ZooKeeperClient(object):
         """
         return self.add_auth_async(scheme, credential).get()
 
-    def create_async(self, path, value, acl=(ZK_OPEN_ACL_UNSAFE,),
-                     ephemeral=False, sequence=False):
+    def create_async(self, path, value, acl=None, ephemeral=False, sequence=False):
         """Asynchronously create a ZNode
 
         @param path: path of node
@@ -133,6 +166,8 @@ class ZooKeeperClient(object):
             flags |= zookeeper.EPHEMERAL
         if sequence:
             flags |= zookeeper.SEQUENCE
+        if acl is None:
+            acl = (ZK_OPEN_ACL_UNSAFE,)
 
         async_result = self._sync.async_result()
         callback = partial(_generic_callback, async_result)
@@ -140,8 +175,7 @@ class ZooKeeperClient(object):
         zookeeper.acreate(self._handle, path, value, list(acl), flags, callback)
         return async_result
 
-    def create(self, path, value, acl=(ZK_OPEN_ACL_UNSAFE,), ephemeral=False,
-               sequence=False):
+    def create(self, path, value, acl=None, ephemeral=False, sequence=False):
         """Create a ZNode
 
         @param path: path of node
@@ -162,13 +196,13 @@ class ZooKeeperClient(object):
         """
         async_result = self._sync.async_result()
         callback = partial(_exists_callback, async_result)
-        watch_callback = self._wrap_callback(watch) if watch else None
+        watch_callback = self._wrap_watch_callback(watch) if watch else None
 
         zookeeper.aexists(self._handle, path, watch_callback, callback)
         return async_result
 
     def exists(self, path, watch=None):
-        """Asynchronously check if a node exists
+        """Check if a node exists
 
         @param path: path of node
         @param watch: optional watch callback to set for future changes to this path
@@ -186,7 +220,7 @@ class ZooKeeperClient(object):
         """
         async_result = self._sync.async_result()
         callback = partial(_generic_callback, async_result)
-        watch_callback = self._wrap_callback(watch) if watch else None
+        watch_callback = self._wrap_watch_callback(watch) if watch else None
 
         zookeeper.aget(self._handle, path, watch_callback, callback)
         return async_result
@@ -210,7 +244,7 @@ class ZooKeeperClient(object):
         """
         async_result = self._sync.async_result()
         callback = partial(_generic_callback, async_result)
-        watch_callback = self._wrap_callback(watch) if watch else None
+        watch_callback = self._wrap_watch_callback(watch) if watch else None
 
         zookeeper.aget_children(self._handle, path, watch_callback, callback)
         return async_result
