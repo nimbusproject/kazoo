@@ -67,8 +67,7 @@ class ZooKeeperClient(object):
     def connected(self):
         return self._connected
 
-    @property
-    def sync(self):
+    def get_sync_strategy(self):
         return self._sync
 
     def _wrap_session_callback(self, func):
