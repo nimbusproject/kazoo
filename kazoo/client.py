@@ -1,7 +1,7 @@
 import logging
 
 from kazoo.zkclient import ZooKeeperClient, WatchedEvent, KeeperState,\
-    EventType
+    EventType, NodeExistsException
 from kazoo.retry import KazooRetry
 
 log = logging.getLogger(__name__)
@@ -38,6 +38,8 @@ class KazooClient(object):
             validate_path(namespace)
         self.namespace = namespace
 
+        self._needs_ensure_path = bool(namespace)
+
         self.zk = ZooKeeperClient(hosts, watcher=self._session_watcher,
             timeout=timeout)
         self.retry = KazooRetry(max_retries)
@@ -53,14 +55,14 @@ class KazooClient(object):
             return
 
         if event.state == KeeperState.CONNECTED:
-            self.make_state_change(KazooState.CONNECTED)
+            self._make_state_change(KazooState.CONNECTED)
         elif event.state in (KeeperState.AUTH_FAILED,
                              KeeperState.EXPIRED_SESSION):
-            self.make_state_change(KazooState.LOST)
+            self._make_state_change(KazooState.LOST)
         elif event.state == KeeperState.CONNECTING:
-            self.make_state_change(KazooState.SUSPENDED)
+            self._make_state_change(KazooState.SUSPENDED)
 
-    def make_state_change(self, state):
+    def _make_state_change(self, state):
         # skip if state is current
         if self.state == state:
             return
@@ -73,6 +75,11 @@ class KazooClient(object):
                 listener(state)
             except Exception:
                 log.exception("Error in connection state listener")
+
+    def _assure_namespace(self):
+        if self._needs_ensure_path:
+            self.ensure_path('/')
+            self._needs_ensure_path = False
 
     def add_listener(self, listener):
         """Add a function to be called for connection state changes
@@ -108,6 +115,7 @@ class KazooClient(object):
         @param sequence: boolean indicating whether path is suffixed with a unique index
         @return: real path of the new node
         """
+        self._assure_namespace()
 
         path = self.namespace_path(path)
         realpath = self.zk.create(path, value, acl=acl, ephemeral=ephemeral,
@@ -121,6 +129,8 @@ class KazooClient(object):
         @param watch: optional watch callback to set for future changes to this path
         @return stat of the node if it exists, else None
         """
+        self._assure_namespace()
+
         path = self.namespace_path(path)
         if watch:
             watch = self.unnamespace_watch(watch)
@@ -133,6 +143,8 @@ class KazooClient(object):
         @param watch: optional watch callback to set for future changes to this path
         @return tuple (value, stat) of node
         """
+        self._assure_namespace()
+
         path = self.namespace_path(path)
         if watch:
             watch = self.unnamespace_watch(watch)
@@ -145,6 +157,8 @@ class KazooClient(object):
         @param watch: optional watch callback to set for future changes to this path
         @return: list of child node names
         """
+        self._assure_namespace()
+
         path = self.namespace_path(path)
         if watch:
             watch = self.unnamespace_watch(watch)
@@ -162,6 +176,8 @@ class KazooClient(object):
         @param version: version of node being updated, or -1
         @return: updated node stat
         """
+        self._assure_namespace()
+
         path = self.namespace_path(path)
         return self.zk.set(path, data, version)
 
@@ -171,8 +187,29 @@ class KazooClient(object):
         @param path: path of node to delete
         @param version: version of node to delete, or -1 for any
         """
+        self._assure_namespace()
+
         path = self.namespace_path(path)
         return self.zk.delete(path, version)
+
+    def ensure_path(self, path):
+        """Recursively create a path if it doesn't exist
+        """
+        path = self.namespace_path(path)
+
+        so_far = ''
+        for part in path.split('/'):
+            if not part:
+                continue
+            so_far += '/' + part
+
+            # using the internal zk client
+            if not self.zk.exists(so_far):
+                try:
+                    self.zk.create(so_far, "")
+                except NodeExistsException:
+                    # someone else created the node. how sweet!
+                    pass
 
     def with_retry(self, func, *args, **kwargs):
         """Run a method repeatedly in the face of transient ZK errors

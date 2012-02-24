@@ -5,6 +5,14 @@ from collections import namedtuple
 
 import zookeeper
 
+from zookeeper import SystemErrorException, RuntimeInconsistencyException,\
+    DataInconsistencyException, ConnectionLossException,\
+    MarshallingErrorException,UnimplementedException,OperationTimeoutException,\
+    BadArgumentsException,ApiErrorException, NoNodeException, NoAuthException,\
+    BadVersionException,NoChildrenForEphemeralsException,NodeExistsException,\
+    InvalidACLException, AuthFailedException, NotEmptyException,\
+    SessionExpiredException, InvalidCallbackException
+
 from kazoo.sync import get_sync_strategy
 
 ZK_OPEN_ACL_UNSAFE = {"perms": zookeeper.PERM_ALL, "scheme": "world",
@@ -339,26 +347,25 @@ def _exists_callback(async_result, handle, code, stat):
 
 # this dictionary is a port of err_to_exception() from zkpython zookeeper.c
 _ERR_TO_EXCEPTION = {
-    zookeeper.SYSTEMERROR: zookeeper.SystemErrorException,
-    zookeeper.RUNTIMEINCONSISTENCY: zookeeper.RuntimeInconsistencyException,
-    zookeeper.DATAINCONSISTENCY: zookeeper.DataInconsistencyException,
-    zookeeper.CONNECTIONLOSS: zookeeper.ConnectionLossException,
-    zookeeper.MARSHALLINGERROR: zookeeper.MarshallingErrorException,
-    zookeeper.UNIMPLEMENTED: zookeeper.UnimplementedException,
-    zookeeper.OPERATIONTIMEOUT: zookeeper.OperationTimeoutException,
-    zookeeper.BADARGUMENTS: zookeeper.BadArgumentsException,
-    zookeeper.APIERROR: zookeeper.ApiErrorException,
-    zookeeper.NONODE: zookeeper.NoNodeException,
-    zookeeper.NOAUTH: zookeeper.NoAuthException,
-    zookeeper.BADVERSION: zookeeper.BadVersionException,
-    zookeeper.NOCHILDRENFOREPHEMERALS: zookeeper.NoChildrenForEphemeralsException,
-    zookeeper.NODEEXISTS: zookeeper.NodeExistsException,
-    zookeeper.INVALIDACL: zookeeper.InvalidACLException,
-    zookeeper.AUTHFAILED: zookeeper.AuthFailedException,
-    zookeeper.NOTEMPTY: zookeeper.NotEmptyException,
-    zookeeper.SESSIONEXPIRED: zookeeper.SessionExpiredException,
-    zookeeper.INVALIDCALLBACK: zookeeper.InvalidCallbackException,
-    zookeeper.SESSIONMOVED: zookeeper.SESSIONMOVED,
+    zookeeper.SYSTEMERROR: SystemErrorException,
+    zookeeper.RUNTIMEINCONSISTENCY: RuntimeInconsistencyException,
+    zookeeper.DATAINCONSISTENCY: DataInconsistencyException,
+    zookeeper.CONNECTIONLOSS: ConnectionLossException,
+    zookeeper.MARSHALLINGERROR: MarshallingErrorException,
+    zookeeper.UNIMPLEMENTED: UnimplementedException,
+    zookeeper.OPERATIONTIMEOUT: OperationTimeoutException,
+    zookeeper.BADARGUMENTS: BadArgumentsException,
+    zookeeper.APIERROR: ApiErrorException,
+    zookeeper.NONODE: NoNodeException,
+    zookeeper.NOAUTH: NoAuthException,
+    zookeeper.BADVERSION: BadVersionException,
+    zookeeper.NOCHILDRENFOREPHEMERALS: NoChildrenForEphemeralsException,
+    zookeeper.NODEEXISTS: NodeExistsException,
+    zookeeper.INVALIDACL: InvalidACLException,
+    zookeeper.AUTHFAILED: AuthFailedException,
+    zookeeper.NOTEMPTY: NotEmptyException,
+    zookeeper.SESSIONEXPIRED: SessionExpiredException,
+    zookeeper.INVALIDCALLBACK: InvalidCallbackException,
 }
 
 def err_to_exception(error_code, msg=None):

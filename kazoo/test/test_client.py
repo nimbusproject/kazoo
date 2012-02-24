@@ -20,9 +20,6 @@ class ZooKeeperClientTests(unittest.TestCase):
         # grab internal ZK client for non-namespaced ops
         zk = client.zk
 
-        #TODO this should be autocreated
-        zk.create(namespace, "")
-
         created_path = client.create("/hi", "hello")
         self.assertEqual(created_path, "/hi")
         self.assertTrue(zk.exists(namespace + "/hi"))
@@ -72,4 +69,19 @@ class ZooKeeperClientTests(unittest.TestCase):
         client.delete("/hi")
 
         self.assertFalse(zk.exists(namespace + "/hi"))
+
+    def test_ensure_path(self):
+        namespace = "/" + uuid.uuid4().hex
+        client = KazooClient(self.hosts, namespace=namespace)
+
+        client.connect()
+        zk = client.zk
+
+        client.ensure_path("/1/2")
+        self.assertTrue(client.exists("/1/2"))
+        self.assertTrue(zk.exists(namespace + "/1/2"))
+
+        client.ensure_path("/1/2/3/4")
+        self.assertTrue(client.exists("/1/2/3/4"))
+        self.assertTrue(zk.exists(namespace + "/1/2/3/4"))
 
