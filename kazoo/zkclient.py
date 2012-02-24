@@ -42,8 +42,10 @@ class WatchedEvent(namedtuple('WatchedEvent', ('type', 'state', 'path'))):
     ZooKeeper, and the path of the znode that was involved in the event.
     """
 
-#noinspection PyUnresolvedReferences
 class ZooKeeperClient(object):
+
+    DEFAULT_TIMEOUT = 10000
+
     """A gevent-friendly wrapper of the Apache ZooKeeper zkpython client
 
     TODO lots to do:
@@ -54,6 +56,8 @@ class ZooKeeperClient(object):
     def __init__(self, hosts, watcher=None, timeout=10000):
         self._hosts = hosts
         self._watcher = watcher
+        if timeout is None:
+            timeout = self.DEFAULT_TIMEOUT
         self._timeout = timeout
 
         self._sync = get_sync_strategy()
