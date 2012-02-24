@@ -32,6 +32,8 @@ class ZooLock(object):
 
         self.is_acquired = False
 
+        self.assured_path = False
+
     def acquire(self):
         """Acquire the mutex, blocking until it is obtained
         """
@@ -47,6 +49,11 @@ class ZooLock(object):
             raise
 
     def _inner_acquire(self):
+
+        # make sure our election parent node exists
+        if not self.assured_path:
+            self.client.ensure_path(self.path)
+
         node = None
         if self.create_tried:
             node = self._find_node()
@@ -131,6 +138,10 @@ class ZooLock(object):
     def get_contenders(self):
         """Return an ordered list of the current contenders for the lock
         """
+        # make sure our election parent node exists
+        if not self.assured_path:
+            self.client.ensure_path(self.path)
+
         children = self._get_sorted_children()
 
         contenders = []

@@ -12,7 +12,6 @@ class ZooLockTests(unittest.TestCase):
         self._c = get_client_or_skip()
         self._c.connect()
         self.lockpath = "/" + uuid.uuid4().hex
-        self._c.create(self.lockpath, "")
 
         self.condition = threading.Condition()
         self.active_thread = None
