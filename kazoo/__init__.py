@@ -1,8 +1,9 @@
 import os
 
 from kazoo.zkclient import ZooKeeperClient
+from kazoo.client import KazooClient
 
-__all__ = ['ZooKeeperClient']
+__all__ = ['ZooKeeperClient', 'KazooClient']
 
 
 # ZK C client likes to spew log info to STDERR. disable that unless an
