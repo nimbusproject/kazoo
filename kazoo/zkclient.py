@@ -43,9 +43,6 @@ class WatchedEvent(namedtuple('WatchedEvent', ('type', 'state', 'path'))):
     """
 
 class ZooKeeperClient(object):
-
-    DEFAULT_TIMEOUT = 10000
-
     """A gevent-friendly wrapper of the Apache ZooKeeper zkpython client
 
     TODO lots to do:
@@ -53,6 +50,9 @@ class ZooKeeperClient(object):
     * disconnected state handling
     * the rest of the operations
     """
+
+    DEFAULT_TIMEOUT = 10000
+
     def __init__(self, hosts, watcher=None, timeout=10000):
         self._hosts = hosts
         self._watcher = watcher

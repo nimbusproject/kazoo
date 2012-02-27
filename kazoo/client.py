@@ -1,7 +1,7 @@
 import logging
 
 from kazoo.zkclient import ZooKeeperClient, WatchedEvent, KeeperState,\
-    EventType, NodeExistsException
+    EventType, NodeExistsException, NoNodeException
 from kazoo.retry import KazooRetry
 
 log = logging.getLogger(__name__)
@@ -210,6 +210,18 @@ class KazooClient(object):
                 except NodeExistsException:
                     # someone else created the node. how sweet!
                     pass
+
+    def recursive_delete(self, path):
+        """Recursively delete a ZNode and all of its children
+        """
+        children = self.get_children(path)
+        if children:
+            for child in children:
+                self.recursive_delete(path + "/" + child)
+        try:
+            self.delete(path)
+        except NoNodeException:
+            pass
 
     def with_retry(self, func, *args, **kwargs):
         """Run a method repeatedly in the face of transient ZK errors
