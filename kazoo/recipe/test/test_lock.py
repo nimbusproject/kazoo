@@ -4,6 +4,7 @@ import threading
 import time
 
 from kazoo.recipe.lock import ZooLock
+from kazoo.exceptions import CancelledError
 from kazoo.test import get_client_or_skip, until_timeout
 
 class ZooLockTests(unittest.TestCase):
@@ -15,6 +16,7 @@ class ZooLockTests(unittest.TestCase):
 
         self.condition = threading.Condition()
         self.active_thread = None
+        self.cancelled_threads = []
 
     def tearDown(self):
         if self.lockpath:
@@ -116,20 +118,62 @@ class ZooLockTests(unittest.TestCase):
             thread.join()
 
 
+    def test_lock_cancel(self):
+
+        client1 = get_client_or_skip()
+        client1.connect()
+        event1 = threading.Event()
+        lock1 = ZooLock(client1, self.lockpath, "one")
+        thread1 = threading.Thread(target=self._thread_lock_acquire_til_event,
+            args=("one", lock1, event1))
+        thread1.start()
+
+        # wait for this thread to acquire the lock
+        with self.condition:
+            if not self.active_thread:
+                self.condition.wait(5)
+                self.assertEqual(self.active_thread, "one")
+
+        client2 = get_client_or_skip()
+        client2.connect()
+        event2 = threading.Event()
+        lock2 = ZooLock(client2, self.lockpath, "two")
+        thread2 = threading.Thread(target=self._thread_lock_acquire_til_event,
+            args=("two", lock2, event2))
+        thread2.start()
+
+        # this one should block in acquire. check that it is a contender
+        self.assertEqual(lock2.get_contenders(), ["one", "two"])
+
+        lock2.cancel()
+        with self.condition:
+            if not "two" in self.cancelled_threads:
+                self.condition.wait()
+                self.assertIn("two", self.cancelled_threads)
+
+        self.assertEqual(lock2.get_contenders(), ["one"])
+
+        thread2.join()
+        event1.set()
+        thread1.join()
+
     def _thread_lock_acquire_til_event(self, name, lock, event):
-        with lock:
-            #print "%s enter lock" % name
+        try:
+            with lock:
+                with self.condition:
+                    self.assertIsNone(self.active_thread)
+                    self.active_thread = name
+                    self.condition.notify_all()
+
+                event.wait()
+
+                with self.condition:
+                    self.assertEqual(self.active_thread, name)
+                    self.active_thread = None
+                    self.condition.notify_all()
+
+        except CancelledError:
             with self.condition:
-                self.assertIsNone(self.active_thread)
-                self.active_thread = name
+                self.cancelled_threads.append(name)
                 self.condition.notify_all()
-
-            event.wait()
-
-            with self.condition:
-                self.assertEqual(self.active_thread, name)
-                self.active_thread = None
-                self.condition.notify_all()
-
-        #print "%s exit lock" % name
 

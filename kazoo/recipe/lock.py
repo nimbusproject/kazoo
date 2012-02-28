@@ -3,8 +3,8 @@ import uuid
 
 from kazoo.retry import ForceRetryError
 from zookeeper import NoNodeException
+from kazoo.exceptions import CancelledError
 
-#noinspection PyArgumentList
 class ZooLock(object):
     _LOCK_NAME = '_lock_'
 
@@ -34,10 +34,18 @@ class ZooLock(object):
 
         self.assured_path = False
 
+        self.cancelled = False
+
+    def cancel(self):
+        """Cancel a pending lock acquire
+        """
+        with self.condition:
+            self.cancelled = True
+            self.condition.notify_all()
+
     def acquire(self):
         """Acquire the mutex, blocking until it is obtained
         """
-
         try:
             self.client.retry(self._inner_acquire)
 
@@ -46,6 +54,7 @@ class ZooLock(object):
         except Exception:
             # if we did ultimately fail, attempt to clean up
             self._best_effort_cleanup()
+            self.cancelled = False
             raise
 
     def _inner_acquire(self):
@@ -69,6 +78,11 @@ class ZooLock(object):
         self.node = node
 
         while True:
+
+            # bail out with an exception if cancellation has been requested
+            if self.cancelled:
+                raise CancelledError()
+
             children = self._get_sorted_children()
 
             try:

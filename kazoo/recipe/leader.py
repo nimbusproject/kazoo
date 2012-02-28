@@ -1,4 +1,5 @@
 from kazoo.recipe.lock import ZooLock
+from kazoo.exceptions import CancelledError
 
 
 class LeaderElection(object):
@@ -9,6 +10,12 @@ class LeaderElection(object):
         if not callable(func):
             raise ValueError("leader function is not callable")
 
-        with self.lock:
-            func(*args, **kwargs)
+        try:
+            with self.lock:
+                func(*args, **kwargs)
 
+        except CancelledError:
+            pass
+
+    def cancel(self):
+        self.lock.cancel()
