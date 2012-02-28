@@ -21,7 +21,7 @@ class ZooLockTests(unittest.TestCase):
     def tearDown(self):
         if self.lockpath:
             try:
-                self._c.delete(self.lockpath)
+                self._c.recursive_delete(self.lockpath)
             except Exception:
                 pass
 
