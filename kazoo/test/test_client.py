@@ -2,7 +2,7 @@ import unittest
 import uuid
 import threading
 
-from kazoo.client import KazooClient
+from kazoo.client import KazooClient, KazooState
 from kazoo.zkclient import EventType
 from kazoo.test import get_hosts_or_skip
 
@@ -84,4 +84,27 @@ class ZooKeeperClientTests(unittest.TestCase):
         client.ensure_path("/1/2/3/4")
         self.assertTrue(client.exists("/1/2/3/4"))
         self.assertTrue(zk.exists(namespace + "/1/2/3/4"))
+
+    def test_state_listener(self):
+
+        states = []
+        condition = threading.Condition()
+
+        def listener(state):
+            with condition:
+                states.append(state)
+                condition.notify_all()
+
+        namespace = "/" + uuid.uuid4().hex
+        client = KazooClient(self.hosts, namespace=namespace)
+
+        client.add_listener(listener)
+        client.connect(5)
+
+        with condition:
+            if not states:
+                condition.wait(5)
+
+        self.assertEqual(len(states), 1)
+        self.assertEqual(states[0], KazooState.CONNECTED)
 
