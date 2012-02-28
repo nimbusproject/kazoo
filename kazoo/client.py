@@ -1,4 +1,5 @@
 import logging
+from os.path import split
 
 from kazoo.zkclient import ZooKeeperClient, WatchedEvent, KeeperState,\
     EventType, NodeExistsException, NoNodeException
@@ -196,20 +197,21 @@ class KazooClient(object):
         """Recursively create a path if it doesn't exist
         """
         path = self.namespace_path(path)
+        self._inner_ensure_path(path)
 
-        so_far = ''
-        for part in path.split('/'):
-            if not part:
-                continue
-            so_far += '/' + part
+    def _inner_ensure_path(self, path):
+        if self.zk.exists(path):
+            return
 
-            # using the internal zk client
-            if not self.zk.exists(so_far):
-                try:
-                    self.zk.create(so_far, "")
-                except NodeExistsException:
-                    # someone else created the node. how sweet!
-                    pass
+        parent, node = split(path)
+
+        if parent != "/":
+            self._inner_ensure_path(parent)
+        try:
+            self.zk.create(path, "")
+        except NodeExistsException:
+            # someone else created the node. how sweet!
+            pass
 
     def recursive_delete(self, path):
         """Recursively delete a ZNode and all of its children
@@ -232,7 +234,9 @@ class KazooClient(object):
         if not self.namespace:
             return path
         validate_path(path)
-        return self.namespace + path
+        path = self.namespace + path
+        path = path.rstrip('/')
+        return path
 
     def unnamespace_path(self, path):
         if not self.namespace:
