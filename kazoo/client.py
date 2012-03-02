@@ -94,6 +94,10 @@ class KazooClient(object):
         """
         self.state_listeners.discard(listener)
 
+    @property
+    def client_id(self):
+        return self.zk.client_id
+
     def connect(self, timeout=None):
         """Initiate connection to ZK
 

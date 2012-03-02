@@ -53,9 +53,10 @@ class ZooKeeperClient(object):
 
     DEFAULT_TIMEOUT = 10000
 
-    def __init__(self, hosts, watcher=None, timeout=10000):
+    def __init__(self, hosts, watcher=None, timeout=10000, client_id=None):
         self._hosts = hosts
         self._watcher = watcher
+        self._provided_client_id = client_id
         if timeout is None:
             timeout = self.DEFAULT_TIMEOUT
         self._timeout = timeout
@@ -70,6 +71,12 @@ class ZooKeeperClient(object):
     @property
     def connected(self):
         return self._connected
+
+    @property
+    def client_id(self):
+        if self._handle is not None:
+            return zookeeper.client_id(self._handle)
+        return None
 
     def get_sync_strategy(self):
         return self._sync
@@ -114,7 +121,12 @@ class ZooKeeperClient(object):
         """
 
         cb = self._wrap_session_callback(self._session_callback)
-        self._handle = zookeeper.init(self._hosts, cb, self._timeout)
+        if self._provided_client_id:
+            self._handle = zookeeper.init(self._hosts, cb, self._timeout,
+                self._provided_client_id)
+        else:
+            self._handle = zookeeper.init(self._hosts, cb, self._timeout)
+
         return self._connected_async_result
 
     def connect(self, timeout=None):
