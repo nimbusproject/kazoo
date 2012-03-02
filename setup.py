@@ -22,7 +22,7 @@ setupdict = {
 
 from setuptools import setup, find_packages
 setupdict['packages'] = find_packages()
-setupdict['install_requires'] = ['zkpython==0.4']
+setupdict['install_requires'] = []
 setupdict['tests_require'] = ['nose']
 setupdict['test_suite'] = 'nose.collector'
 
