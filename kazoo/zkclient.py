@@ -51,7 +51,7 @@ class ZooKeeperClient(object):
     * the rest of the operations
     """
 
-    DEFAULT_TIMEOUT = 10000
+    DEFAULT_TIMEOUT = 10.0
 
     def __init__(self, hosts, watcher=None, timeout=10000, client_id=None):
         self._hosts = hosts
@@ -59,7 +59,9 @@ class ZooKeeperClient(object):
         self._provided_client_id = client_id
         if timeout is None:
             timeout = self.DEFAULT_TIMEOUT
-        self._timeout = timeout
+
+        # ZK uses milliseconds
+        self._timeout = int(timeout * 1000)
 
         self._sync = get_sync_strategy()
 

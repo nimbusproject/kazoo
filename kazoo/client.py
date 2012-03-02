@@ -31,7 +31,7 @@ class KazooClient(object):
     Supports retries, namespacing, easier state monitoring; saves kittens.
     """
 
-    def __init__(self, hosts, namespace=None, timeout=10000, max_retries=None):
+    def __init__(self, hosts, namespace=None, timeout=10.0, max_retries=None):
         # remove any trailing slashes
         if namespace:
             namespace = namespace.rstrip('/')
