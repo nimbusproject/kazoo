@@ -1,9 +1,21 @@
 #!/usr/bin/env python
 
+import os
+import codecs
+
+VERSION = "0.1.0"
+
+if os.path.exists("README.rst"):
+    long_description = codecs.open('README.rst', "r", "utf-8").read()
+else:
+    long_description = "See http://github.com/nimbusproject/kazoo"
+
+
 setupdict = {
     'name' : 'kazoo',
-    'version' : '0.1',
+    'version' : VERSION,
     'description' : 'ZooKeeper client that supports async frameworks',
+    'long_description' : long_description,
     'license' : 'Apache 2.0',
     'author' : 'Nimbus team',
     'author_email' : 'nimbus@mcs.anl.gov',
@@ -17,7 +29,9 @@ setupdict = {
     "Topic :: Communications",
     "Topic :: System :: Distributed Computing",
     "Topic :: System :: Networking",
-    "Topic :: Software Development :: Libraries :: Python Modules"],
+    "Topic :: Software Development :: Libraries :: Python Modules",],
+    "url" : "https://github.com/nimbusproject/kazoo",
+    "download_url" : "http://www.nimbusproject.org/downloads/kazoo-%s.tar.gz" % VERSION,
 }
 
 from setuptools import setup, find_packages
