@@ -53,7 +53,7 @@ class ZooKeeperClient(object):
 
     DEFAULT_TIMEOUT = 10.0
 
-    def __init__(self, hosts, watcher=None, timeout=10000, client_id=None):
+    def __init__(self, hosts, watcher=None, timeout=None, client_id=None):
         self._hosts = hosts
         self._watcher = watcher
         self._provided_client_id = client_id
