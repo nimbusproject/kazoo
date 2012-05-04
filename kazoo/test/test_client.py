@@ -11,10 +11,16 @@ class ZooKeeperClientTests(unittest.TestCase):
     def setUp(self):
         self.hosts = get_hosts_or_skip()
 
-    def test_namespace(self):
+        self.namespace = "/kazootests" + uuid.uuid4().hex
+        self.client = KazooClient(self.hosts, namespace=self.namespace)
 
-        namespace = "/" + uuid.uuid4().hex
-        client = KazooClient(self.hosts, namespace=namespace)
+    def tearDown(self):
+        self.client.recursive_delete(self.namespace)
+        self.client.close()
+
+    def test_namespace(self):
+        namespace = self.namespace
+        client = self.client
 
         client.connect()
 
@@ -72,8 +78,8 @@ class ZooKeeperClientTests(unittest.TestCase):
         self.assertFalse(zk.exists(namespace + "/hi"))
 
     def test_ensure_path(self):
-        namespace = "/" + uuid.uuid4().hex
-        client = KazooClient(self.hosts, namespace=namespace)
+        namespace = self.namespace
+        client = self.client
 
         client.connect()
         zk = client.zk
@@ -96,11 +102,8 @@ class ZooKeeperClientTests(unittest.TestCase):
                 states.append(state)
                 condition.notify_all()
 
-        namespace = "/" + uuid.uuid4().hex
-        client = KazooClient(self.hosts, namespace=namespace)
-
-        client.add_listener(listener)
-        client.connect(5)
+        self.client.add_listener(listener)
+        self.client.connect(5)
 
         with condition:
             if not states:
@@ -110,25 +113,21 @@ class ZooKeeperClientTests(unittest.TestCase):
         self.assertEqual(states[0], KazooState.CONNECTED)
 
     def test_create_no_makepath(self):
-        namespace = "/" + uuid.uuid4().hex
-        client = KazooClient(self.hosts, namespace=namespace)
 
-        client.connect()
+        self.client.connect()
 
-        self.assertRaises(NoNodeException, client.create, "/1/2", "val1")
-        self.assertRaises(NoNodeException, client.create, "/1/2", "val1",
+        self.assertRaises(NoNodeException, self.client.create, "/1/2", "val1")
+        self.assertRaises(NoNodeException, self.client.create, "/1/2", "val1",
             makepath=False)
 
     def test_create_makepath(self):
-        namespace = "/" + uuid.uuid4().hex
-        client = KazooClient(self.hosts, namespace=namespace)
-        client.connect()
+        self.client.connect()
 
-        client.create("/1/2", "val1", makepath=True)
-        data, stat = client.get("/1/2")
+        self.client.create("/1/2", "val1", makepath=True)
+        data, stat = self.client.get("/1/2")
         self.assertEqual(data, "val1")
 
-        client.create("/1/2/3/4/5", "val2", makepath=True)
-        data, stat = client.get("/1/2/3/4/5")
+        self.client.create("/1/2/3/4/5", "val2", makepath=True)
+        data, stat = self.client.get("/1/2/3/4/5")
         self.assertEqual(data, "val2")
 

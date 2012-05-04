@@ -240,7 +240,11 @@ class KazooClient(object):
     def recursive_delete(self, path):
         """Recursively delete a ZNode and all of its children
         """
-        children = self.get_children(path)
+        try:
+            children = self.get_children(path)
+        except NoNodeException:
+            return
+
         if children:
             for child in children:
                 self.recursive_delete(path + "/" + child)
