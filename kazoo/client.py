@@ -110,7 +110,8 @@ class KazooClient(object):
         """
         self.zk.close()
 
-    def create(self, path, value, acl=None, ephemeral=False, sequence=False):
+    def create(self, path, value, acl=None, ephemeral=False, sequence=False,
+            makepath=False):
         """Create a ZNode
 
         @param path: path of node
@@ -118,13 +119,32 @@ class KazooClient(object):
         @param acl: permissions for node
         @param ephemeral: boolean indicating whether node is ephemeral (tied to this session)
         @param sequence: boolean indicating whether path is suffixed with a unique index
+        @param makepath: boolean indicating whether to create path if it doesn't exist
         @return: real path of the new node
         """
         self._assure_namespace()
 
         path = self.namespace_path(path)
-        realpath = self.zk.create(path, value, acl=acl, ephemeral=ephemeral,
-            sequence=sequence)
+        try:
+            realpath = self.zk.create(path, value, acl=acl,
+                ephemeral=ephemeral, sequence=sequence)
+
+        except NoNodeException:
+            # some or all of the parent path doesn't exist. if makepath is set
+            # we will create it and retry. If it fails again, someone must be
+            # actively deleting ZNodes and we'd best bail out.
+            if not makepath:
+                raise
+
+            parent, _ = split(path)
+
+            # using the inner call directly because path is already namespaced
+            self._inner_ensure_path(parent)
+
+            # now retry
+            realpath = self.zk.create(path, value, acl=acl,
+                ephemeral=ephemeral, sequence=sequence)
+
         return self.unnamespace_path(realpath)
 
     def exists(self, path, watch=None):

@@ -5,6 +5,7 @@ import threading
 from kazoo.client import KazooClient, KazooState
 from kazoo.zkclient import EventType
 from kazoo.test import get_hosts_or_skip
+from kazoo.exceptions import NoNodeException
 
 class ZooKeeperClientTests(unittest.TestCase):
     def setUp(self):
@@ -107,4 +108,27 @@ class ZooKeeperClientTests(unittest.TestCase):
 
         self.assertEqual(len(states), 1)
         self.assertEqual(states[0], KazooState.CONNECTED)
+
+    def test_create_no_makepath(self):
+        namespace = "/" + uuid.uuid4().hex
+        client = KazooClient(self.hosts, namespace=namespace)
+
+        client.connect()
+
+        self.assertRaises(NoNodeException, client.create, "/1/2", "val1")
+        self.assertRaises(NoNodeException, client.create, "/1/2", "val1",
+            makepath=False)
+
+    def test_create_makepath(self):
+        namespace = "/" + uuid.uuid4().hex
+        client = KazooClient(self.hosts, namespace=namespace)
+        client.connect()
+
+        client.create("/1/2", "val1", makepath=True)
+        data, stat = client.get("/1/2")
+        self.assertEqual(data, "val1")
+
+        client.create("/1/2/3/4/5", "val2", makepath=True)
+        data, stat = client.get("/1/2/3/4/5")
+        self.assertEqual(data, "val2")
 
