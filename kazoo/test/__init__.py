@@ -1,9 +1,9 @@
 import os
 import unittest
 import time
+import uuid
 
-from kazoo.zkclient import ZooKeeperClient
-from kazoo.client import KazooClient
+from kazoo.client import KazooClient, KazooState
 
 # if this env variable is set, ZK client integration tests are run
 # against the specified host list
@@ -35,3 +35,15 @@ def until_timeout(timeout, value=None):
 
 
 
+class KazooTestCase(unittest.TestCase):
+    def setUp(self):
+        self.hosts = get_hosts_or_skip()
+
+        self.namespace = "/kazootests" + uuid.uuid4().hex
+        self.client = KazooClient(self.hosts, namespace=self.namespace)
+
+    def tearDown(self):
+        if self.client.state == KazooState.LOST:
+            self.client.connect()
+        self.client.recursive_delete(self.namespace)
+        self.client.close()

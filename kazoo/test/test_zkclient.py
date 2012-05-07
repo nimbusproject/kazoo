@@ -1,35 +1,20 @@
-import unittest
 import uuid
 import threading
 
 from kazoo.zkclient import ZooKeeperClient
-from kazoo.test import get_hosts_or_skip
+from kazoo.test import KazooTestCase
 
-class ZooKeeperClientTests(unittest.TestCase):
-    def setUp(self):
-        self.hosts = get_hosts_or_skip()
+class ZooKeeperClientTests(KazooTestCase):
 
-        self.zk = None
-        self.created = []
-
-    def tearDown(self):
-        if self.zk:
-            #TODO remove any created nodes
-            self.zk.close()
-
-    def test_connect_close(self):
-        self.zk = ZooKeeperClient(self.hosts)
-
-        self.zk.connect()
-        self.assertTrue(self.zk.connected)
-        self.zk.close()
-        self.assertFalse(self.zk.connected)
+    @property
+    def zk(self):
+        return self.client.zk
 
     def test_create_get_set(self):
-        self.zk = ZooKeeperClient(self.hosts)
-        self.zk.connect()
+        self.client.connect()
+        self.client.ensure_path("/")
 
-        nodepath = "/" + uuid.uuid4().hex
+        nodepath = self.namespace + "/" + uuid.uuid4().hex
 
         self.zk.create(nodepath, "sandwich", ephemeral=True)
 
@@ -41,8 +26,8 @@ class ZooKeeperClientTests(unittest.TestCase):
         self.assertGreater(newstat['version'], stat['version'])
 
     def test_create_get_sequential(self):
-        self.zk = ZooKeeperClient(self.hosts)
-        self.zk.connect()
+        self.client.connect()
+        self.client.ensure_path("/")
 
         basepath = "/" + uuid.uuid4().hex
         realpath = self.zk.create(basepath, "sandwich", sequence=True,
@@ -54,8 +39,8 @@ class ZooKeeperClientTests(unittest.TestCase):
         self.assertEqual(data, "sandwich")
 
     def test_exists(self):
-        self.zk = ZooKeeperClient(self.hosts)
-        self.zk.connect()
+        self.client.connect()
+        self.client.ensure_path("/")
 
         nodepath = "/" + uuid.uuid4().hex
 
@@ -67,9 +52,13 @@ class ZooKeeperClientTests(unittest.TestCase):
         self.assertTrue(exists)
         self.assertIn("version", exists)
 
+        multi_node_nonexistent = "/" + uuid.uuid4().hex + "/hats"
+        exists = self.zk.exists(multi_node_nonexistent)
+        self.assertIsNone(exists)
+
     def test_exists_watch(self):
-        self.zk = ZooKeeperClient(self.hosts)
-        self.zk.connect()
+        self.client.connect()
+        self.client.ensure_path("/")
 
         nodepath = "/" + uuid.uuid4().hex
 
@@ -88,8 +77,8 @@ class ZooKeeperClientTests(unittest.TestCase):
         self.assertTrue(event.is_set())
 
     def test_create_delete(self):
-        self.zk = ZooKeeperClient(self.hosts)
-        self.zk.connect()
+        self.client.connect()
+        self.client.ensure_path("/")
 
         nodepath = "/" + uuid.uuid4().hex
 

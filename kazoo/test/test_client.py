@@ -1,22 +1,11 @@
-import unittest
-import uuid
 import threading
 
-from kazoo.client import KazooClient, KazooState
+from kazoo.client import KazooState
 from kazoo.zkclient import EventType
-from kazoo.test import get_hosts_or_skip
+from kazoo.test import KazooTestCase
 from kazoo.exceptions import NoNodeException
 
-class ZooKeeperClientTests(unittest.TestCase):
-    def setUp(self):
-        self.hosts = get_hosts_or_skip()
-
-        self.namespace = "/kazootests" + uuid.uuid4().hex
-        self.client = KazooClient(self.hosts, namespace=self.namespace)
-
-    def tearDown(self):
-        self.client.recursive_delete(self.namespace)
-        self.client.close()
+class ZooKeeperClientTests(KazooTestCase):
 
     def test_namespace(self):
         namespace = self.namespace
