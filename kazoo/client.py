@@ -154,7 +154,6 @@ class KazooClient(object):
         @param watch: optional watch callback to set for future changes to this path
         @return stat of the node if it exists, else None
         """
-        self._assure_namespace()
 
         path = self.namespace_path(path)
         if watch:
@@ -168,7 +167,6 @@ class KazooClient(object):
         @param watch: optional watch callback to set for future changes to this path
         @return tuple (value, stat) of node
         """
-        self._assure_namespace()
 
         path = self.namespace_path(path)
         if watch:
@@ -182,7 +180,6 @@ class KazooClient(object):
         @param watch: optional watch callback to set for future changes to this path
         @return: list of child node names
         """
-        self._assure_namespace()
 
         path = self.namespace_path(path)
         if watch:
