@@ -110,6 +110,14 @@ class KazooClient(object):
         """
         self.zk.close()
 
+    def add_auth(self, scheme, credential):
+        """Send credentials to server
+
+        @param scheme: authentication scheme (default supported: "digest")
+        @param credential: the credential -- value depends on scheme
+        """
+        self.zk.add_auth(scheme, credential)
+
     def create(self, path, value, acl=None, ephemeral=False, sequence=False,
             makepath=False):
         """Create a ZNode
