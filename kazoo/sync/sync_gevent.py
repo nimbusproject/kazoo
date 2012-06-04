@@ -1,5 +1,6 @@
 import fcntl
 import os
+import logging
 
 import gevent
 import gevent.event
@@ -9,6 +10,7 @@ from gevent.timeout import Timeout
 import kazoo.sync.util
 realthread = kazoo.sync.util.get_realthread()
 
+log = logging.getLogger(__name__)
 
 # this is inspired by the threadpool recipe in the geventutil package:
 #   https://bitbucket.org/denis/gevent-playground/src/tip/geventutil/threadpool.py
@@ -114,7 +116,7 @@ class GeventSyncStrategy(object):
                 try:
                     fun(*args)
                 except Exception:
-                    pass
+                    log.exception("Exception in kazoo callback")
 
                 self._cb_fun = None
                 self._cb_args = None

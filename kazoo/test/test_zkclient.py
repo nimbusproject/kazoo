@@ -76,6 +76,29 @@ class ZooKeeperClientTests(KazooTestCase):
         event.wait(1)
         self.assertTrue(event.is_set())
 
+    def test_exists_watcher_exception(self):
+        self.client.connect()
+        self.client.ensure_path("/")
+
+        nodepath = "/" + uuid.uuid4().hex
+
+        event = threading.Event()
+
+        # if the watcher throws an exception, all we can really do is log it
+        def w(watch_event):
+            self.assertEqual(watch_event.path, nodepath)
+            event.set()
+
+            raise Exception("this is really bad")
+
+        exists = self.zk.exists(nodepath, watch=w)
+        self.assertIsNone(exists)
+
+        self.zk.create(nodepath, "x", ephemeral=True)
+
+        event.wait(1)
+        self.assertTrue(event.is_set())
+
     def test_create_delete(self):
         self.client.connect()
         self.client.ensure_path("/")
