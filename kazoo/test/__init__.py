@@ -40,7 +40,10 @@ class KazooTestCase(unittest.TestCase):
         self.hosts = get_hosts_or_skip()
 
         self.namespace = "/kazootests" + uuid.uuid4().hex
-        self.client = KazooClient(self.hosts, namespace=self.namespace)
+        self.client = self._get_client()
+
+    def _get_client(self):
+        return KazooClient(self.hosts, namespace=self.namespace)
 
     def tearDown(self):
         if self.client.state == KazooState.LOST:

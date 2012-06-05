@@ -18,6 +18,16 @@ from kazoo.sync import get_sync_strategy
 ZK_OPEN_ACL_UNSAFE = {"perms": zookeeper.PERM_ALL, "scheme": "world",
                        "id": "anyone"}
 
+
+class AclPermission(object):
+    READ = zookeeper.PERM_READ
+    WRITE = zookeeper.PERM_WRITE
+    CREATE = zookeeper.PERM_CREATE
+    DELETE = zookeeper.PERM_DELETE
+    ADMIN = zookeeper.PERM_ADMIN
+    ALL = zookeeper.PERM_ALL
+
+
 class KeeperState(object):
     ASSOCIATING = zookeeper.ASSOCIATING_STATE
     AUTH_FAILED = zookeeper.AUTH_FAILED_STATE

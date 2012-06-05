@@ -1,8 +1,9 @@
 import logging
 from os.path import split
+import hashlib
 
 from kazoo.zkclient import ZooKeeperClient, WatchedEvent, KeeperState,\
-    EventType, NodeExistsException, NoNodeException
+    EventType, NodeExistsException, NoNodeException, AclPermission
 from kazoo.retry import KazooRetry
 
 log = logging.getLogger(__name__)
@@ -25,13 +26,43 @@ class KazooState(object):
     LOST = "LOST"
 
 
+def make_digest_acl_credential(username, password):
+    credential = "%s:%s" % (username, password)
+    cred_hash = hashlib.sha1(credential).digest().encode('base64').strip()
+    return "%s:%s" % (username, cred_hash)
+
+def make_acl(scheme, credential, read=False, write=False,
+             create=False, delete=False, admin=False, all=False):
+    if all:
+        permissions = AclPermission.ALL
+    else:
+        permissions = 0
+        if read:
+            permissions |= AclPermission.READ
+        if write:
+            permissions |= AclPermission.WRITE
+        if create:
+            permissions |= AclPermission.CREATE
+        if delete:
+            permissions |= AclPermission.DELETE
+        if admin:
+            permissions |= AclPermission.ADMIN
+
+    return dict(scheme=scheme, id=credential, perms=permissions)
+
+def make_digest_acl(username, password, read=False, write=False,
+                    create=False, delete=False, admin=False, all=False):
+    cred = make_digest_acl_credential(username, password)
+    return make_acl("digest", cred, read=read, write=write, create=create,
+        delete=delete, admin=admin, all=all)
+
 class KazooClient(object):
     """Higher-level ZooKeeper client.
 
     Supports retries, namespacing, easier state monitoring; saves kittens.
     """
 
-    def __init__(self, hosts, namespace=None, timeout=10.0, max_retries=None):
+    def __init__(self, hosts, namespace=None, timeout=10.0, max_retries=None, default_acl=None):
         # remove any trailing slashes
         if namespace:
             namespace = namespace.rstrip('/')
@@ -47,6 +78,8 @@ class KazooClient(object):
 
         self.state = KazooState.LOST
         self.state_listeners = set()
+
+        self.default_acl = default_acl
 
     def _session_watcher(self, event):
         """called by the underlying ZK client when the connection state changes
@@ -77,9 +110,9 @@ class KazooClient(object):
             except Exception:
                 log.exception("Error in connection state listener")
 
-    def _assure_namespace(self):
+    def _assure_namespace(self, acl=None):
         if self._needs_ensure_path:
-            self.ensure_path('/')
+            self.ensure_path('/', acl=acl)
             self._needs_ensure_path = False
 
     def add_listener(self, listener):
@@ -130,9 +163,13 @@ class KazooClient(object):
         @param makepath: boolean indicating whether to create path if it doesn't exist
         @return: real path of the new node
         """
-        self._assure_namespace()
+        self._assure_namespace(acl=acl)
 
         path = self.namespace_path(path)
+
+        if acl is None and self.default_acl:
+            acl = self.default_acl
+
         try:
             realpath = self.zk.create(path, value, acl=acl,
                 ephemeral=ephemeral, sequence=sequence)
@@ -147,7 +184,7 @@ class KazooClient(object):
             parent, _ = split(path)
 
             # using the inner call directly because path is already namespaced
-            self._inner_ensure_path(parent)
+            self._inner_ensure_path(parent, acl)
 
             # now retry
             realpath = self.zk.create(path, value, acl=acl,
@@ -217,27 +254,28 @@ class KazooClient(object):
         @param path: path of node to delete
         @param version: version of node to delete, or -1 for any
         """
-        self._assure_namespace()
-
         path = self.namespace_path(path)
         return self.zk.delete(path, version)
 
-    def ensure_path(self, path):
+    def ensure_path(self, path, acl=None):
         """Recursively create a path if it doesn't exist
         """
         path = self.namespace_path(path)
-        self._inner_ensure_path(path)
+        self._inner_ensure_path(path, acl)
 
-    def _inner_ensure_path(self, path):
+    def _inner_ensure_path(self, path, acl):
         if self.zk.exists(path):
             return
+
+        if acl is None and self.default_acl:
+            acl = self.default_acl
 
         parent, node = split(path)
 
         if parent != "/":
-            self._inner_ensure_path(parent)
+            self._inner_ensure_path(parent, acl)
         try:
-            self.zk.create(path, "")
+            self.zk.create(path, "", acl=acl)
         except NodeExistsException:
             # someone else created the node. how sweet!
             pass

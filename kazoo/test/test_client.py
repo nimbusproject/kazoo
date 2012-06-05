@@ -1,11 +1,12 @@
 import threading
+import uuid
 
-from kazoo.client import KazooState
+from kazoo.client import KazooState, make_digest_acl
 from kazoo.zkclient import EventType
 from kazoo.test import KazooTestCase
-from kazoo.exceptions import NoNodeException
+from kazoo.exceptions import NoNodeException, NoAuthException
 
-class ZooKeeperClientTests(KazooTestCase):
+class KazooClientTests(KazooTestCase):
 
     def test_namespace(self):
         namespace = self.namespace
@@ -120,3 +121,29 @@ class ZooKeeperClientTests(KazooTestCase):
         data, stat = self.client.get("/1/2/3/4/5")
         self.assertEqual(data, "val2")
 
+    def test_auth(self):
+
+        self.client.connect()
+
+        username = uuid.uuid4().hex
+        password = uuid.uuid4().hex
+
+        digest_auth = "%s:%s" % (username, password)
+        acl = make_digest_acl(username, password, all=True)
+
+        self.client.add_auth("digest", digest_auth)
+
+        self.client.default_acl = (acl,)
+
+        self.client.create("/1", "")
+        self.client.create("/1/2", "")
+
+        eve = self._get_client()
+        eve.connect()
+
+        self.assertRaises(NoAuthException, eve.get, "/1/2")
+
+        # try again with the wrong auth token
+        eve.add_auth("digest", "badbad:bad")
+
+        self.assertRaises(NoAuthException, eve.get, "/1/2")

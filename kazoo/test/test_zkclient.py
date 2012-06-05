@@ -1,7 +1,6 @@
 import uuid
 import threading
 
-from kazoo.zkclient import ZooKeeperClient
 from kazoo.test import KazooTestCase
 
 class ZooKeeperClientTests(KazooTestCase):
@@ -89,7 +88,7 @@ class ZooKeeperClientTests(KazooTestCase):
             self.assertEqual(watch_event.path, nodepath)
             event.set()
 
-            raise Exception("this is really bad")
+            raise Exception("test exception in callback")
 
         exists = self.zk.exists(nodepath, watch=w)
         self.assertIsNone(exists)
@@ -113,4 +112,4 @@ class ZooKeeperClientTests(KazooTestCase):
         self.assertIsNone(exists)
 
 
-  
+
