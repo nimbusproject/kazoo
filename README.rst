@@ -1,3 +1,7 @@
+**DEPRECATED! Ongoing development of Kazoo has moved to https://github.com/python-zk/kazoo**
+
+
+
 #####################################################################
 kazoo - Python ZooKeeper client that supports async frameworks
 #####################################################################
